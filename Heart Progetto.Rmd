@@ -1,0 +1,195 @@
+---
+title: "Decifrare il cuore: un'analisi statistica del rischio cardiovascolare"
+author: "Rosa Maria Bruno, Roberto Cerminara, Lorenzo Piattoli"
+output: pdf_document
+fontsize: 12pt
+latex_engine: xelatex
+toc: true
+toc_depth: 3
+number_sections: true
+---
+\newpage{}
+# Introduzione
+Il "Heart Disease Dataset" rappresenta una pietra miliare nel campo della ricerca cardiovascolare e dell'analisi dei dati medici. Originariamente compilato nel 1988, questo dataset è il risultato della fusione di quattro database provenienti da diverse località: Cleveland, Ungheria, Svizzera e Long Beach V. Questa diversità geografica e temporale conferisce al dataset una ricchezza e una robustezza particolari, consentendo di analizzare le malattie cardiache da prospettive multiple. 
+
+L'obiettivo primario di questo dataset è quello di fornire una base solida per la previsione della presenza di malattie cardiache nei pazienti. In un'epoca in cui le malattie cardiovascolari rappresentano una delle principali cause di mortalità a livello globale, 1  la capacità di individuare precocemente i soggetti a rischio è di fondamentale importanza. Il "Heart Disease Dataset" si propone come uno strumento prezioso per sviluppare modelli predittivi accurati e per approfondire la comprensione dei fattori di rischio associati alle malattie cardiache.
+
+## Caratteristiche del dataset
+Il dataset si compone di 14 attributi clinici chiave, selezionati per la loro rilevanza nella diagnosi delle malattie cardiache. Questi attributi includono informazioni demografiche (età, sesso), parametri fisiologici (pressione sanguigna, colesterolo), risultati di test diagnostici (elettrocardiogramma, fluoroscopia) e altri indicatori clinici (tipo di dolore toracico, angina indotta da esercizio fisico).
+
+## Colonne del dataset
+
+**age**: età del paziente in anni.  
+**sex**: sesso del paziente (1 = maschio; 0 = femmina).  
+**cp**: tipo di dolore toracico (chest pain type). Ci sono 4 valori possibili (0, 1, 2, 3), che rappresentano diverse categorie di dolore toracico.  
+**trestbps**: pressione sanguigna a riposo (resting blood pressure) in mm Hg.  
+**chol**: colesterolo sierico (serum cholestoral) in mg/dl.  
+**fbs**: glicemia a digiuno (fasting blood sugar). 1 se > 120 mg/dl, 0 altrimenti.  
+**restecg**: Risultati dell'elettrocardiogramma a riposo (resting electrocardiographic results). Valori 0, 1, 2.  
+**thalach**: frequenza cardiaca massima raggiunta (maximum heart rate achieved).  
+**exang**: angina indotta da esercizio fisico (exercise induced angina). 1 = sì; 0 = no.  
+**oldpeak**: depressione ST indotta da esercizio fisico rispetto al riposo (ST depression induced by exercise relative to rest).  
+**slope**: pendenza del segmento ST di picco dell'esercizio (the slope of the peak exercise ST segment).  
+**ca**: numero di vasi principali (0-3) colorati mediante fluoroscopia (number of major vessels (0-3) colored by flourosopy).  
+**thal**: thalium stress test result (3 = normal; 6 = fixed defect; 7 = reversable defect).  
+**target**: presenza di malattia cardiaca (1 = sì; 0 = no).   
+
+La variabile **target**, denominata _"target"_, rappresenta la presenza o l'assenza di malattie cardiache. Questa variabile è codificata in forma binaria (0 = assenza, 1 = presenza), consentendo l'applicazione di modelli di classificazione per la previsione del rischio.
+
+
+
+\newpage{}
+# Preparazione dei dati in R
+## Caricamento ed esplorazione del dataset
+```{r setup1, comment=NA}
+life_heart = read.csv(file="heartdata.csv", header=FALSE, sep=",")
+library(dplyr)
+library(ggplot2)
+library(ggsci)
+#library(rgl)
+
+names(life_heart) <- c("age", "sex", "cp", "trestbps", "chol","fbs", "restecg","thalach","exang", "oldpeak","slope", "ca", "thal", "num")
+
+str(life_heart)
+
+tail(life_heart)
+
+#il dataset presenta delle variabili il cui tipo non è corretto. Variabili cateogirche quali il sesso infatti, sono trattate come interi. 
+#Si rende necessaria una conversione in factor delle variabili categoriche in modo da poter iniziare una esplorazione corretta del database.
+#######################CONTROLLO DEI VALORI MANCANTI. E' FONDAMENTALE CAPIRE SE TRA LE 14 COLONNE CI SIANO VALORI MANCANTI#####
+
+which(is.na(life_heart)) 
+
+sum(is.na(life_heart))    # sembra non ci siano valori mancanti nel dataset. 
+
+##################### Conversione delle variabili in factor############ 
+#usiamo la funzione unique per vedere i valori presi dalla variabile sesso
+
+
+
+
+unique(life_heart$sex)  #funzione fondamentale per ispezionare variabili che risultano con tante categorie o valori 
+                        #elimina inoltre i valori che si ripetono permettendo una identificazione piu chiara.
+
+#Altra funzione esplorativa è la funzione distinct
+
+distinct(life_heart,sex,cp,restecg,fbs,exang,slope,thal) #variabili qualitative 
+
+
+unique(life_heart$cp)
+
+head(life_heart$cp)
+
+```
+
+# Analisi esplorativa dei dati
+
+```{r setup2, comment=NA}
+ggplot(life_heart, aes(x = factor(sex,levels=c(1,0),labels = c("Maschio","Femmina")), fill = factor(num))) + 
+  geom_bar(position = "stack") + 
+  labs(title = "Distribuzione della malattia cardiaca per sesso", 
+       x = "Sesso", y = "Proporzione") + 
+  scale_fill_manual(values = c("0" = "#1f77b4",  # Blu
+                               "1" = "#ff7f0e",  # Arancione
+                               "2" = "#2ca02c",  # Verde
+                               "3" = "#d62728",  # Rosso
+                               "4" = "#9467bd")) +  # Viola
+  theme_minimal()
+```
+
+Il grafico presentato evidenzia in modo inequivocabile una netta disparità nell'incidenza delle malattie cardiache tra i due sessi, con una prevalenza significativa negli uomini. Questo dato è immediatamente visibile dall'altezza delle barre nel grafico, dove la colonna relativa al sesso maschile sovrasta nettamente quella femminile.
+
+Nonostante questa marcata differenza quantitativa, l'analisi della distribuzione della gravità della malattia, rappresentata dalle diverse sezioni colorate all'interno delle barre, suggerisce un quadro interessante: la proporzione delle varie categorie di gravità sembra mantenersi relativamente costante tra uomini e donne. In altre parole, sebbene il numero assoluto di uomini affetti da malattie cardiache sia maggiore in ogni categoria di gravità, la distribuzione percentuale delle gravità sembra simile nei due sessi.
+
+Questa osservazione apre a diverse interpretazioni. La differenza evidente nell'incidenza complessiva potrebbe essere il risultato di una complessa interazione di fattori. È plausibile che differenze ormonali tra uomini e donne giochino un ruolo, così come diversità negli stili di vita (abitudini alimentari, attività fisica, consumo di tabacco e alcol) o predisposizioni genetiche.
+
+Tuttavia, il fatto che la distribuzione della gravità della malattia appaia simile nei due sessi suggerisce che, una volta che la malattia si manifesta, il sesso non esercita un'influenza determinante sulla sua progressione. In altre parole, il sesso potrebbe essere un fattore di rischio per lo sviluppo della malattia, ma non necessariamente per la sua gravità.
+
+```{r setup3, comment=NA}
+#vediamo la distribuzione del numero di infarti rispetto al tipo di dolore 
+ggplot(life_heart, aes(x = factor(cp, 
+                                  levels = c(1, 2, 3, 4),  
+                                  labels = c("Dolore toracico", 
+                                             "Dolore toracico anomalo", 
+                                             "Dolore toracico non dovuto a malattia cardiaca", 
+                                             "Asintomatico")), 
+                       fill = factor(num))) + 
+  geom_bar(position = "stack") +  # Stack per le frequenze assolute
+  labs(title = "Distribuzione della malattia cardiaca per tipo di dolore toracico", 
+       x = "Tipo di dolore toracico", 
+       y = "Frequenza assoluta", 
+       fill = "Numero di infarti") + 
+  scale_fill_manual(values = c("0" = "#1f77b4",  # Blu
+                               "1" = "#ff7f0e",  # Arancione
+                               "2" = "#2ca02c",  # Verde
+                               "3" = "#d62728",  # Rosso
+                               "4" = "#9467bd")) +  # Viola
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)) +
+  facet_wrap(~ sex, labeller = labeller(sex = c("0" = "Donna", "1" = "Uomo")))  # Aggiungi la divisione per sesso
+
+```
+
+Questo grafico ci mostra come le malattie cardiache si manifestano in uomini e donne, a seconda del tipo di dolore toracico che provano.
+Per prima cosa, guardiamo i diversi tipi di dolore toracico che sono stati registrati. Vediamo quattro categorie: dolore toracico "classico", dolore toracico "anomalo", dolore toracico non legato a problemi cardiaci e infine, casi in cui non si è manifestato alcun dolore, cioè persone "asintomatiche".
+Ora, quello che salta subito all'occhio è che uomini e donne sembrano reagire in modo diverso. Tra gli uomini, la maggior parte dei casi di malattie cardiache, soprattutto quelli più gravi, si verifica in pazienti che non hanno mai avvertito dolore al petto, cioè sono asintomatici. Questo è un dato molto interessante perché significa che molti uomini potrebbero avere problemi cardiaci seri senza nemmeno saperlo.
+Nelle donne, invece, la situazione è un po' diversa. Vediamo che ci sono più casi di malattie cardiache in donne che hanno avuto dolore toracico, anche se ci sono anche molti casi asintomatici.
+Un'altra cosa importante da notare è che le barre colorate ci dicono quanto è grave la malattia cardiaca, in base al numero di infarti che la persona ha avuto. Più la barra è alta e colorata, più la malattia è grave. E qui vediamo che negli uomini, i casi più gravi tendono a concentrarsi tra quelli asintomatici.
+
+```{r setup4, comment=NA}
+life_heart <- life_heart %>%
+  mutate(sex_label = factor(sex, levels = c(1, 0), labels = c("Uomo", "Donna")))
+
+# Grafico con facet_grid
+ggplot(life_heart, aes(x = age, fill = factor(num))) +
+  geom_histogram(binwidth = 5, color = "black", alpha = 0.7) +
+  facet_grid(. ~ sex_label) +  # Divide il grafico per sesso
+  labs(title = "Distribuzione dell'età per sesso e numero di infarti",
+       x = "Età",
+       y = "Conteggio",
+       fill = "Numero di infarti") +
+  scale_fill_manual(values = c("0" = "#1f77b4",  # Blu
+                               "1" = "#ff7f0e",  # Arancione
+                               "2" = "#2ca02c",  # Verde
+                               "3" = "#d62728",  # Rosso
+                               "4" = "#9467bd")) +  # Viola
+  theme_minimal()
+```
+
+La prima cosa che notiamo è che sia negli uomini che nelle donne, il numero di malattie cardiache tende ad aumentare con l'età. Ma c'è una differenza interessante: negli uomini, il picco di malattie cardiache si verifica in età più avanzata rispetto alle donne.
+
+Inoltre, se guardiamo i colori delle barre, vediamo che negli uomini, i casi più gravi (quelli con più infarti) tendono a concentrarsi nelle fasce di età più avanzate. Questo significa che gli uomini anziani hanno più probabilità di avere malattie cardiache gravi.
+
+Nelle donne, invece, la distribuzione della gravità della malattia sembra più uniforme. Ci sono casi gravi anche in età più giovani, anche se la maggior parte delle malattie cardiache si verifica comunque in età avanzata.
+
+Quindi, in sintesi, questo grafico ci dice che l'età è un fattore di rischio importante per le malattie cardiache sia negli uomini che nelle donne, ma che ci sono alcune differenze tra i sessi. 
+
+## Matrice di correlazione
+
+```{r setup5, comment=NA}
+library(ggcorrplot)
+df_corr=life_heart %>% dplyr::select(age,trestbps,chol,thalach,oldpeak)
+sum(is.na(df_corr))
+cor_matrix=cor(df_corr)
+print(cor_matrix)
+
+
+ggcorrplot(cor_matrix, 
+           method = "square",  
+           type = "lower", 
+           hc.order = TRUE,
+           lab = TRUE, 
+           colors = c("blue", "white", "red"))+
+       ggtitle("Matrice di Correlazione delle Variabili Quantitative") +
+       theme(plot.title = element_text(hjust = 0.5))
+```
+
+**Età e depressione ST**: La correlazione positiva tra age e oldpeak suggerisce che la depressione ST indotta da esercizio fisico tende ad aumentare con l'età. Questo potrebbe indicare una diminuzione della funzione cardiaca con l'avanzare dell'età.
+**Pressione sanguigna e depressione ST**: La correlazione positiva tra trestbps e oldpeak suggerisce che la depressione ST indotta da esercizio fisico tende ad aumentare con la pressione sanguigna a riposo. Questo è coerente con l'idea che l'ipertensione può mettere a dura prova il cuore.
+Frequenza cardiaca e età/depressione ST: La correlazione negativa tra thalach e age indica che la frequenza cardiaca massima raggiunta tende a diminuire con l'età. La correlazione negativa tra thalach e oldpeak suggerisce che una maggiore depressione ST indotta da esercizio fisico è associata a una frequenza cardiaca massima inferiore.
+**Colesterolo**: Il colesterolo sierico (chol) mostra correlazioni deboli con le altre variabili, suggerendo che potrebbe non avere una forte relazione lineare con esse.
+Considerazioni aggiuntive:
+
+**Correlazione non implica causalità**: È importante ricordare che la correlazione non implica causalità. Il fatto che due variabili siano correlate non significa necessariamente che una causi l'altra.
+**Altre variabili**: Questa matrice mostra solo la correlazione tra alcune variabili quantitative. Sarebbe utile esaminare anche la correlazione tra le variabili categoriali e quantitative, nonché la correlazione tra le variabili categoriali.
+**Significatività statistica**: Sarebbe utile calcolare la significatività statistica dei coefficienti di correlazione per determinare se le relazioni osservate sono statisticamente significative.
